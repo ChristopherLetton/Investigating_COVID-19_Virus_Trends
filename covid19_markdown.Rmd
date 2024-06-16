@@ -1,0 +1,149 @@
+---
+title: "Investigating COVID-19 Virus Trends"
+author: "Christopher Letton"
+date: "2024-06-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This project evaluates the COVID-19 data from 20th January to the 1st June 2020. My analysis will try to answer the question of which countries reported the highest number of positive cases in relation to the number of tests conducted.
+
+# Understanding the Data
+## Loading the dataset
+
+```{r}
+library(readr)
+covid_df <- read_csv("covid19.csv")
+```
+```{r}
+# dimension of dataframe
+dim(covid_df)
+
+# store column names in a variable
+vector_cols <- colnames(covid_df)
+vector_cols
+```
+```{r}
+# display first few rows of dataframe
+head(covid_df)
+```
+```{r}
+# display a global view of dataset - glimpse provides the combined output of dim(), colnames(), and head()
+library(tibble)
+glimpse(covid_df)
+```
+# Isolating the required rows
+- Selecting only the rows related to "All States" and removing the "Province_State".
+```{r}
+library(dplyr)
+# Filter "All states" and remove the "Province_state" column
+covid_df_all_states <- covid_df %>%
+  filter(Province_State == "All States") %>%
+  select(-Province_State) # can remove column as only value is "All states"
+```
+
+# Isolating the required Columns
+```{r}
+# selecting columns with cumulative numbers
+covid_df_all_states_daily <- covid_df_all_states %>%
+  select(Date, Country_Region, active, hospitalizedCurr, daily_tested, daily_positive)
+
+head(covid_df_all_states_daily)
+```
+# Extracting Top Ten countries in the number of tested cases
+
+## Summarising data based on "Country_Region" column.
+```{r}
+covid_df_all_states_daily_sum <- covid_df_all_states_daily %>% 
+  group_by(Country_Region) %>%
+  summarise(tested = sum(daily_tested),
+            positive = sum(daily_positive),
+            active = sum(active),
+            hospitalized = sum(hospitalizedCurr)) %>%
+  arrange(-tested)
+
+covid_df_all_states_daily_sum
+```
+## Take top 10
+```{r}
+covid_top_10 <- head(covid_df_all_states_daily_sum, 10)
+
+covid_top_10
+```
+# Identifying Highest Positive Against Tested Cases
+
+## Getting vectors
+```{r}
+countries <- covid_top_10 %>% pull(Country_Region)
+tested_cases <- covid_top_10 %>% pull(tested)
+positive_cases <- covid_top_10 %>% pull(positive)
+active_cases <- covid_top_10 %>% pull(active)
+hospitalized_cases <- covid_top_10 %>% pull(hospitalized)
+```
+
+## Naming vectors
+```{r}
+names(positive_cases) <- countries
+names(tested_cases) <- countries
+names(active_cases) <- countries
+names(hospitalized_cases) <- countries
+```
+
+## Identifying
+```{r}
+positive_cases/tested_cases
+```
+
+## Conclusion
+```{r}
+# manually inspected to select top 3 
+positive_tested_top_3 <- c("United Kingdom" = 0.11, "United States" = 0.10, "Turkey" = 0.08)
+```
+
+# Keep relevant infomration
+```{r}
+united_kingdom <- c(0.11, 1473672, 166909, 0, 0)
+united_states <- c(0.10, 17282363, 1877179, 0, 0)
+turkey <- c(0.08, 2031192, 163941, 2980960, 0)
+
+# combine the vectors
+covid_mat <- rbind(united_kingdom, united_states, turkey)
+
+# name columns
+colnames(covid_mat) <- c("Ratio", "tested", "positive", "active", "hospitalized")
+
+covid_mat
+```
+
+# Pulling everything together
+```{r}
+question <- "Which countries have had the highest number of positive cases against the number of tests?"
+
+answer <- c("Positive tested cases" = positive_tested_top_3)
+
+datasets <- list(
+  original = covid_df,
+  allstates = covid_df_all_states,
+  daily = covid_df_all_states_daily,
+  top_10 = covid_top_10)
+
+matrices <- list(covid_mat)
+vectors <- list(vector_cols, countries)
+
+data_structure_list <- list("dataframe" = datasets, "matrix" = matrices, "vector" = vectors)
+
+covid_analysis_list <- list(question, answer, data_structure_list)
+
+covid_analysis_list[[2]]
+```
+
+From the analysis, it is clear that United Kingdom, United States, and Turkey have had the highest number of positive cases against the number of test cases as the start of the pandemic.
+
+
+
+
